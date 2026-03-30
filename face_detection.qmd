@@ -1,0 +1,297 @@
+---
+title: "DSPP"
+format: html
+editor: visual
+---
+
+## Running Code
+
+```{r}
+# library(magick)
+# library(image.libfacedetection)
+# 
+# # setwd("C:/path/to/your/WIDER_FACE_folder")
+# 
+# calculate_detection_rate <- function(folder_path, confidence_threshold = 50, sample_size = 100) {
+#   image_files <- list.files(folder_path, full.names = TRUE)
+#   image_files <- image_files[!is.na(image_files)]
+#   
+#   if(length(image_files) == 0) return(0)
+#   
+#   # Randomly sample up to 100 images to prevent crashing while keeping data robust
+#   actual_sample_size <- min(sample_size, length(image_files))
+#   sampled_files <- sample(image_files, actual_sample_size)
+#   
+#   success_count <- 0
+#   
+#   for (img_path in sampled_files) {
+#     img <- tryCatch(image_read(img_path), error = function(e) NULL)
+#     
+#     if (!is.null(img)) {
+#       faces <- image_detect_faces(img)
+#       if (length(faces$detections) > 0 && any(faces$detections$confidence >= confidence_threshold)) {
+#         success_count <- success_count + 1
+#       }
+#     }
+#   }
+#   return((success_count / actual_sample_size) * 100)
+# }
+```
+
+```{# {r}
+# # Compare 3 tiers of Scale
+# rate_parade <- calculate_detection_rate("WIDER_train/images/0--Parade/") # Extreme Crowd
+# rate_marching <- calculate_detection_rate("WIDER_train/images/10--People_Marching/") # Medium Crowd
+# rate_students <- calculate_detection_rate("WIDER_train/images/31--Student_Schoolkids/") # Close-up
+# 
+# barplot(c(rate_parade, rate_marching, rate_students), 
+#         names.arg = c("Parade (Extreme)", "Marching (Medium)", "Students (Close-up)"), 
+#         col = c("darkred", "orange", "darkgreen"),
+#         main = "Detection Success by Subject Scale", ylab = "Success Rate (%)")
+```
+
+```{r}
+# # Compare 3 tiers of Occlusion
+# rate_riot <- calculate_detection_rate("WIDER_train/images/12--Riot/") # Heavy Occlusion
+# rate_racing <- calculate_detection_rate("WIDER_train/images/42--Car_Racing/") # Partial Occlusion (Helmets)
+# rate_interview <- calculate_detection_rate("WIDER_train/images/13--Interview/") # Clear
+# 
+# barplot(c(rate_riot, rate_racing, rate_interview), 
+#         names.arg = c("Riot (Heavy)", "Racing (Partial)", "Interview (Clear)"), 
+#         col = c("darkred", "orange", "darkgreen"),
+#         main = "Detection Success by Occlusion Level", ylab = "Success Rate (%)")
+```
+
+```{# {r}
+# # Compare 3 tiers of Pose
+# rate_gymnastics <- calculate_detection_rate("WIDER_train/images/17--Ceremony/") # Highly Dynamic/Atypical
+# rate_cop <- calculate_detection_rate("WIDER_train/images/14--Traffic_Cop/") # Mixed Profiles
+# rate_meeting <- calculate_detection_rate("WIDER_train/images/11--Meeting/") # Static/Frontal
+# 
+# barplot(c(rate_gymnastics, rate_cop, rate_meeting), 
+#         names.arg = c("Ceremony (Atypical)", "Traffic Cop (Mixed)", "Meeting (Frontal)"), 
+#         col = c("darkred", "orange", "darkgreen"),
+#         main = "Detection Success by Pose & Dynamics", ylab = "Success Rate (%)")
+```
+
+```{r}
+library(magick)
+library(image.libfacedetection)
+
+# setwd("C:/path/to/your/WIDER_FACE_folder")
+
+calculate_detection_rate <- function(folder_path = NULL, is_global = FALSE, confidence_threshold = 50, sample_size = 100) {
+  
+  # If calculating the global baseline, pull from all folders
+  if(is_global) {
+    image_files <- list.files("WIDER_train/images/", recursive = TRUE, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  } else {
+    image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  }
+  
+  image_files <- image_files[!is.na(image_files)]
+  if(length(image_files) == 0) return(0)
+  
+  # Randomly sample exactly 100 images to prevent crashing
+  actual_sample_size <- min(sample_size, length(image_files))
+  sampled_files <- sample(image_files, actual_sample_size)
+  
+  success_count <- 0
+  
+  for (img_path in sampled_files) {
+    img <- tryCatch(image_read(img_path), error = function(e) NULL)
+    if (!is.null(img)) {
+      faces <- image_detect_faces(img)
+      if (length(faces$detections) > 0 && any(faces$detections$confidence >= confidence_threshold)) {
+        success_count <- success_count + 1
+      }
+    }
+  }
+  return((success_count / actual_sample_size) * 100)
+}
+
+# EVERYONE CALCULATES THE OVERALL BASELINE
+rate_overall_baseline <- calculate_detection_rate(is_global = TRUE)
+print(paste("Overall Dataset Baseline:", rate_overall_baseline, "%"))
+```
+
+```{r}
+# Compare 3 tiers of Scale against the Baseline
+rate_parade <- calculate_detection_rate("WIDER_train/images/0--Parade/") # Extreme Crowd
+rate_marching <- calculate_detection_rate("WIDER_train/images/10--People_Marching/") # Medium Crowd
+rate_students <- calculate_detection_rate("WIDER_train/images/31--Student_Schoolkids/") # Close-up
+
+# Plot including the Overall Baseline
+barplot(c(rate_parade, rate_marching, rate_overall_baseline, rate_students), 
+        names.arg = c("Parade (Extreme)", "Marching (Medium)", "OVERALL AVERAGE", "Students (Close-up)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Subject Scale", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+# Compare 3 tiers of Occlusion against the Baseline
+rate_riot <- calculate_detection_rate("WIDER_train/images/12--Riot/") # Heavy Occlusion
+rate_racing <- calculate_detection_rate("WIDER_train/images/42--Car_Racing/") # Partial Occlusion (Helmets)
+rate_interview <- calculate_detection_rate("WIDER_train/images/13--Interview/") # Clear
+
+# Plot including the Overall Baseline
+barplot(c(rate_riot, rate_racing, rate_overall_baseline, rate_interview), 
+        names.arg = c("Riot (Heavy)", "Racing (Partial)", "OVERALL AVERAGE", "Interview (Clear)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Occlusion Level", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+# Compare 3 tiers of Pose against the Baseline
+rate_gymnastics <- calculate_detection_rate("WIDER_train/images/17--Ceremony/") # Atypical Poses
+rate_cop <- calculate_detection_rate("WIDER_train/images/14--Traffic_Cop/") # Mixed Profiles
+rate_meeting <- calculate_detection_rate("WIDER_train/images/11--Meeting/") # Static/Frontal
+
+# Plot including the Overall Baseline
+barplot(c(rate_gymnastics, rate_cop, rate_overall_baseline, rate_meeting), 
+        names.arg = c("Ceremony (Atypical)", "Traffic Cop (Mixed)", "OVERALL AVERAGE", "Meeting (Frontal)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Pose", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+folder_path <- "~/Documents/Spring 2026 Courses/DS for Public Policy/face_detection/WIDER_test/images/" 
+filenames <- list.files(path = folder_path)
+print(filenames)
+```
+
+```{r}
+list.dirs("WIDER_train/images/", recursive = FALSE)
+```
+
+```{r}
+library(magick)
+library(image.libfacedetection)
+
+# setwd("C:/path/to/your/WIDER_FACE_folder")
+
+calculate_detection_rate <- function(folder_path = NULL, is_global = FALSE, confidence_threshold = 50, sample_size = 100) {
+  
+  if(is_global) {
+    # If calculating the global baseline, pull from all folders
+    image_files <- list.files("WIDER_train/images/", recursive = TRUE, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  } else {
+    # Pull from the specific folder path
+    image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  }
+  
+  image_files <- image_files[!is.na(image_files)]
+  if(length(image_files) == 0) return(0)
+  
+  # Randomly sample exactly 100 images to prevent crashing
+  actual_sample_size <- min(sample_size, length(image_files))
+  sampled_files <- sample(image_files, actual_sample_size)
+  
+  success_count <- 0
+  
+  for (img_path in sampled_files) {
+    img <- tryCatch(image_read(img_path), error = function(e) NULL)
+    if (!is.null(img)) {
+      faces <- image_detect_faces(img)
+      if (length(faces$detections) > 0 && any(faces$detections$confidence >= confidence_threshold)) {
+        success_count <- success_count + 1
+      }
+    }
+  }
+  return((success_count / actual_sample_size) * 100)
+}
+
+# EVERYONE CALCULATES THE OVERALL BASELINE
+rate_overall_baseline <- calculate_detection_rate(is_global = TRUE)
+print(paste("Overall Dataset Baseline:", rate_overall_baseline, "%"))
+```
+
+```{r}
+# Compare 3 tiers of Scale against the Baseline
+rate_parade <- calculate_detection_rate("WIDER_train/images//0--Parade") # Extreme Crowd
+rate_marching <- calculate_detection_rate("WIDER_train/images//10--People_Marching") # Medium Crowd
+rate_students <- calculate_detection_rate("WIDER_train/images//29--Students_Schoolkids") # Close-up
+
+# Plot
+barplot(c(rate_parade, rate_marching, rate_overall_baseline, rate_students), 
+        names.arg = c("Parade (Extreme)", "Marching (Medium)", "OVERALL AVERAGE", "Students (Close-up)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Subject Scale", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+# Compare 3 tiers of Occlusion against the Baseline
+rate_riot <- calculate_detection_rate("WIDER_train/images//3--Riot") # Heavy Occlusion
+rate_racing <- calculate_detection_rate("WIDER_train/images//42--Car_Racing") # Partial Occlusion (Helmets)
+rate_interview <- calculate_detection_rate("WIDER_train/images//13--Interview") # Clear
+
+# Plot
+barplot(c(rate_riot, rate_racing, rate_overall_baseline, rate_interview), 
+        names.arg = c("Riot (Heavy)", "Racing (Partial)", "OVERALL AVERAGE", "Interview (Clear)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Occlusion Level", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+# Compare 3 tiers of Pose against the Baseline
+rate_gymnastics <- calculate_detection_rate("WIDER_train/images//40--Gymnastics") # Highly Atypical Poses
+rate_traffic <- calculate_detection_rate("WIDER_train/images//14--Traffic") # Mixed Profiles
+rate_meeting <- calculate_detection_rate("WIDER_train/images//11--Meeting") # Static/Frontal
+
+# Plot
+barplot(c(rate_gymnastics, rate_traffic, rate_overall_baseline, rate_meeting), 
+        names.arg = c("Gymnastics (Atypical)", "Traffic (Mixed)", "OVERALL AVERAGE", "Meeting (Frontal)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "Detection Success by Pose", ylab = "Success Rate (%)", ylim=c(0,100))
+```
+
+```{r}
+library(magick)
+library(image.libfacedetection)
+
+# UPDATED FUNCTION: Demanding 85% algorithmic confidence
+calculate_detection_rate <- function(folder_path = NULL, is_global = FALSE, confidence_threshold = 85, sample_size = 100) {
+  
+  if(is_global) {
+    image_files <- list.files("WIDER_train/images/", recursive = TRUE, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  } else {
+    image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  }
+  
+  image_files <- image_files[!is.na(image_files)]
+  if(length(image_files) == 0) return(0)
+  
+  actual_sample_size <- min(sample_size, length(image_files))
+  sampled_files <- sample(image_files, actual_sample_size)
+  
+  success_count <- 0
+  
+  for (img_path in sampled_files) {
+    img <- tryCatch(image_read(img_path), error = function(e) NULL)
+    if (!is.null(img)) {
+      faces <- image_detect_faces(img)
+      
+      # We now demand the AI is 85%+ confident before we count it as a success
+      if (length(faces$detections) > 0 && any(faces$detections$confidence >= confidence_threshold)) {
+        success_count <- success_count + 1
+      }
+    }
+  }
+  return((success_count / actual_sample_size) * 100)
+}
+
+# 1. Calculate the overall baseline with the strict 85% rule
+rate_overall_baseline <- calculate_detection_rate(is_global = TRUE)
+print(paste("Overall Dataset Baseline (High Confidence):", rate_overall_baseline, "%"))
+
+# 2. Re-run your Occlusion variables
+rate_riot <- calculate_detection_rate("WIDER_train/images//3--Riot") 
+rate_racing <- calculate_detection_rate("WIDER_train/images//42--Car_Racing") 
+rate_interview <- calculate_detection_rate("WIDER_train/images//13--Interview") 
+
+# 3. Plot the new, accurate graph
+barplot(c(rate_riot, rate_racing, rate_overall_baseline, rate_interview), 
+        names.arg = c("Riot (Heavy)", "Racing (Partial)", "OVERALL AVERAGE", "Interview (Clear)"), 
+        col = c("darkred", "orange", "gray", "darkgreen"),
+        main = "High-Confidence Detection by Occlusion Level", ylab = "Success Rate (%)", ylim=c(0,100))
+```
