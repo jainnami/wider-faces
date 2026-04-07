@@ -1,0 +1,469 @@
+---
+title: "face detection 2"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{# {r}
+# library(magick)
+# library(image.libfacedetection)
+# 
+# # 1. SET YOUR WORKING DIRECTORY HERE
+# setwd("~/Documents/Spring 2026 Courses/DS for Public Policy/face_detection")
+# 
+# # =====================================================================
+# # PART 1: THE STANDARD DETECTION FUNCTION (Fully Restored)
+# # =====================================================================
+# calculate_detection_rate <- function(folder_path = NULL, is_global = FALSE, confidence_threshold = 85, sample_size = 100) {
+#   
+#   if(is_global) {
+#     image_files <- list.files("WIDER_train/images/", recursive = TRUE, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+#   } else {
+#     image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+#   }
+#   
+#   image_files <- image_files[!is.na(image_files)]
+#   if(length(image_files) == 0) return(0)
+#   
+#   actual_sample_size <- min(sample_size, length(image_files))
+#   sampled_files <- sample(image_files, actual_sample_size)
+#   
+#   success_count <- 0
+#   
+#   for (img_path in sampled_files) {
+#     img <- tryCatch(image_read(img_path), error = function(e) NULL)
+#     if (!is.null(img)) {
+#       faces <- image_detect_faces(img)
+#       if (length(faces$detections) > 0 && any(faces$detections$confidence >= confidence_threshold)) {
+#         success_count <- success_count + 1
+#       }
+#     }
+#   }
+#   return((success_count / actual_sample_size) * 100)
+# }
+# 
+# # =====================================================================
+# # PART 2: THE VOLATILITY & BRITTLENESS ANALYSIS 
+# # =====================================================================
+# 
+# # 1. Function to extract the highest AI confidence from each image
+# get_max_confidences <- function(folder_path, sample_size = 80) {
+#   image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+#   image_files <- image_files[!is.na(image_files)]
+#   if(length(image_files) == 0) return(c())
+#   
+#   actual_sample <- min(sample_size, length(image_files))
+#   sampled_files <- sample(image_files, actual_sample)
+#   
+#   max_confs <- numeric(actual_sample)
+#   
+#   for (i in 1:actual_sample) {
+#     img <- tryCatch(image_read(sampled_files[i]), error = function(e) NULL)
+#     if (!is.null(img)) {
+#       faces <- image_detect_faces(img)
+#       if (length(faces$detections) > 0) {
+#         max_confs[i] <- max(faces$detections$confidence) # Record highest confidence
+#       } else {
+#         max_confs[i] <- 0 # AI found nothing
+#       }
+#     }
+#   }
+#   return(max_confs)
+# }
+# 
+# # 2. Function to calculate Detection Rate and 95% Confidence Interval
+# calc_stats <- function(conf_vector, threshold) {
+#   n <- length(conf_vector)
+#   successes <- sum(conf_vector >= threshold)
+#   p <- successes / n
+#   
+#   # Calculate 95% Confidence Interval (Margin of Error)
+#   margin_error <- 1.96 * sqrt((p * (1 - p)) / n)
+#   
+#   # Ensure bounds don't go below 0% or above 100%
+#   lower_bound <- max(0, (p - margin_error) * 100)
+#   upper_bound <- min(100, (p + margin_error) * 100)
+#   
+#   return(list(rate = p * 100, lower = lower_bound, upper = upper_bound))
+# }
+# 
+# # --- RUN THE ANALYSIS ---
+# 
+# # Pull data for an Easy event and a Hard event
+# data_easy <- get_max_confidences("WIDER_train/images//11--Meeting")
+# data_hard <- get_max_confidences("WIDER_train/images//3--Riot")
+# 
+# # The thresholds we want to test
+# thresholds <- c(50, 60, 70, 80, 90)
+# 
+# # Calculate stats for both settings across all thresholds
+# rates_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$rate)
+# lower_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$lower)
+# upper_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$upper)
+# 
+# rates_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$rate)
+# lower_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$lower)
+# upper_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$upper)
+# 
+# # --- PLOT THE RESULTS ---
+# plot(thresholds, rates_easy, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+#      main="Algorithm Brittleness & 95% Confidence Intervals",
+#      xlab="Required AI Confidence Threshold", ylab="Detection Rate (%)")
+# lines(thresholds, rates_hard, type="o", col="darkred", pch=16, lwd=2)
+# 
+# # Add Error Bars (The Confidence Intervals)
+# arrows(thresholds, lower_easy, thresholds, upper_easy, length=0.05, angle=90, code=3, col="darkgreen")
+# arrows(thresholds, lower_hard, thresholds, upper_hard, length=0.05, angle=90, code=3, col="darkred")
+# 
+# legend("bottomleft", legend=c("Meeting (Controlled)", "Riot (Unconstrained)"), 
+#        col=c("darkgreen", "darkred"), lty=1, pch=16, lwd=2)
+```
+
+```{# {r}
+# # =====================================================================
+# # THE BRITTLENESS CURVE & VOLATILITY ANALYSIS
+# # =====================================================================
+# 
+# library(magick)
+# library(image.libfacedetection)
+# 
+# # 1. Set your exact working directory
+# setwd("~/Documents/Spring 2026 Courses/DS for Public Policy/face_detection")
+# 
+# # 2. Function to extract the highest AI confidence from each image
+# get_max_confidences <- function(folder_path, sample_size = 80) {
+#   image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+#   image_files <- image_files[!is.na(image_files)]
+#   if(length(image_files) == 0) return(c())
+#   
+#   actual_sample <- min(sample_size, length(image_files))
+#   sampled_files <- sample(image_files, actual_sample)
+#   
+#   max_confs <- numeric(actual_sample)
+#   
+#   for (i in 1:actual_sample) {
+#     img <- tryCatch(image_read(sampled_files[i]), error = function(e) NULL)
+#     if (!is.null(img)) {
+#       faces <- image_detect_faces(img)
+#       if (length(faces$detections) > 0) {
+#         max_confs[i] <- max(faces$detections$confidence) # Record highest confidence
+#       } else {
+#         max_confs[i] <- 0 # AI found nothing
+#       }
+#     }
+#   }
+#   return(max_confs)
+# }
+# 
+# # 3. Function to calculate Detection Rate and 95% Confidence Interval (Margin of Error)
+# calc_stats <- function(conf_vector, threshold) {
+#   n <- length(conf_vector)
+#   successes <- sum(conf_vector >= threshold)
+#   p <- successes / n
+#   
+#   # Calculate 95% Confidence Interval
+#   margin_error <- 1.96 * sqrt((p * (1 - p)) / n)
+#   
+#   # Ensure bounds don't mathematically go below 0% or above 100%
+#   lower_bound <- max(0, (p - margin_error) * 100)
+#   upper_bound <- min(100, (p + margin_error) * 100)
+#   
+#   return(list(rate = p * 100, lower = lower_bound, upper = upper_bound))
+# }
+# 
+# # --- RUN THE DATA EXTRACTION ---
+# 
+# print("Scanning Meeting (Controlled Setting)...")
+# data_easy <- get_max_confidences("WIDER_train/images//11--Meeting")
+# 
+# print("Scanning Riot (Unconstrained Setting)...")
+# data_hard <- get_max_confidences("WIDER_train/images//3--Riot")
+# 
+# # The security thresholds we want to test
+# thresholds <- c(50, 60, 70, 80, 90)
+# 
+# # Calculate the statistics for both settings across all thresholds
+# rates_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$rate)
+# lower_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$lower)
+# upper_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$upper)
+# 
+# rates_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$rate)
+# lower_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$lower)
+# upper_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$upper)
+# 
+# # --- GENERATE THE PLOT ---
+# 
+# plot(thresholds, rates_easy, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+#      main="Algorithm Brittleness & 95% Confidence Intervals",
+#      xlab="Required AI Confidence Threshold", ylab="Detection Rate (%)", las=1)
+# 
+# # Add the hard setting line
+# lines(thresholds, rates_hard, type="o", col="darkred", pch=16, lwd=2)
+# 
+# # Add the Error Bars (Margin of Error)
+# arrows(thresholds, lower_easy, thresholds, upper_easy, length=0.05, angle=90, code=3, col="darkgreen", lwd=1.5)
+# arrows(thresholds, lower_hard, thresholds, upper_hard, length=0.05, angle=90, code=3, col="darkred", lwd=1.5)
+# 
+# # Add a legend
+# legend("bottomleft", legend=c("Meeting (Controlled)", "Riot (Unconstrained)"), 
+#        col=c("darkgreen", "darkred"), lty=1, pch=16, lwd=2)
+# 
+# print("Analysis Complete! Look at your Plots pane.")
+```
+
+```{r}
+# # =====================================================================
+# # THE BRITTLENESS CURVE & VOLATILITY ANALYSIS (FIXED)
+# # =====================================================================
+# 
+# library(magick)
+# library(image.libfacedetection)
+# 
+# # 1. Set your exact working directory
+# setwd("~/Documents/Spring 2026 Courses/DS for Public Policy/face_detection")
+# 
+# # 2. Function to extract the highest AI confidence from each image
+# get_max_confidences <- function(folder_path, sample_size = 80) {
+#   image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+#   image_files <- image_files[!is.na(image_files)]
+#   if(length(image_files) == 0) return(c())
+#   
+#   actual_sample <- min(sample_size, length(image_files))
+#   sampled_files <- sample(image_files, actual_sample)
+#   
+#   max_confs <- numeric(actual_sample)
+#   
+#   for (i in 1:actual_sample) {
+#     img <- tryCatch(image_read(sampled_files[i]), error = function(e) NULL)
+#     if (!is.null(img)) {
+#       faces <- image_detect_faces(img)
+#       
+#       # THE FIX: Explicitly check if the confidence column has data
+#       if (length(faces$detections$confidence) > 0) {
+#         max_confs[i] <- max(faces$detections$confidence, na.rm = TRUE) # Record highest confidence
+#       } else {
+#         max_confs[i] <- 0 # AI found nothing, safely record 0
+#       }
+#     }
+#   }
+#   return(max_confs)
+# }
+# 
+# # 3. Function to calculate Detection Rate and 95% Confidence Interval (Margin of Error)
+# calc_stats <- function(conf_vector, threshold) {
+#   n <- length(conf_vector)
+#   successes <- sum(conf_vector >= threshold)
+#   p <- successes / n
+#   
+#   # Calculate 95% Confidence Interval
+#   margin_error <- 1.96 * sqrt((p * (1 - p)) / n)
+#   
+#   # Ensure bounds don't mathematically go below 0% or above 100%
+#   lower_bound <- max(0, (p - margin_error) * 100)
+#   upper_bound <- min(100, (p + margin_error) * 100)
+#   
+#   return(list(rate = p * 100, lower = lower_bound, upper = upper_bound))
+# }
+# 
+# # --- RUN THE DATA EXTRACTION ---
+# 
+# print("Scanning Meeting (Controlled Setting)...")
+# data_easy <- get_max_confidences("WIDER_train/images//11--Meeting")
+# 
+# print("Scanning Riot (Unconstrained Setting)...")
+# data_hard <- get_max_confidences("WIDER_train/images//3--Riot")
+# 
+# # The security thresholds we want to test
+# thresholds <- c(50, 60, 70, 80, 90)
+# 
+# # Calculate the statistics for both settings across all thresholds
+# rates_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$rate)
+# lower_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$lower)
+# upper_easy <- sapply(thresholds, function(t) calc_stats(data_easy, t)$upper)
+# 
+# rates_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$rate)
+# lower_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$lower)
+# upper_hard <- sapply(thresholds, function(t) calc_stats(data_hard, t)$upper)
+# 
+# # --- GENERATE THE PLOT ---
+# 
+# plot(thresholds, rates_easy, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+#      main="Algorithm Brittleness & 95% Confidence Intervals",
+#      xlab="Required AI Confidence Threshold", ylab="Detection Rate (%)", las=1)
+# 
+# # Add the hard setting line
+# lines(thresholds, rates_hard, type="o", col="darkred", pch=16, lwd=2)
+# 
+# # Add the Error Bars (Margin of Error)
+# arrows(thresholds, lower_easy, thresholds, upper_easy, length=0.05, angle=90, code=3, col="darkgreen", lwd=1.5)
+# arrows(thresholds, lower_hard, thresholds, upper_hard, length=0.05, angle=90, code=3, col="darkred", lwd=1.5)
+# 
+# # Add a legend
+# legend("bottomleft", legend=c("Meeting (Controlled)", "Riot (Unconstrained)"), 
+#        col=c("darkgreen", "darkred"), lty=1, pch=16, lwd=2)
+# 
+# print("Analysis Complete! Look at your Plots pane.")
+```
+
+### Final Shreya R Code (Brittleness by Variable)
+
+**STEP 1: THE SHARED SETUP (Everyone runs this first)**
+
+```{r}
+library(magick)
+library(image.libfacedetection)
+
+# Set Working Directory
+setwd("~/Documents/Spring 2026 Courses/DS for Public Policy/face_detection")
+
+# Function to extract highest AI confidence
+get_max_confidences <- function(folder_path, sample_size = 80) {
+  image_files <- list.files(folder_path, full.names = TRUE, pattern = "\\.jpg$|\\.jpeg$")
+  image_files <- image_files[!is.na(image_files)]
+  if(length(image_files) == 0) return(c())
+  
+  actual_sample <- min(sample_size, length(image_files))
+  sampled_files <- sample(image_files, actual_sample)
+  max_confs <- numeric(actual_sample)
+  
+  for (i in 1:actual_sample) {
+    img <- tryCatch(image_read(sampled_files[i]), error = function(e) NULL)
+    if (!is.null(img)) {
+      faces <- image_detect_faces(img)
+      if (length(faces$detections$confidence) > 0) {
+        max_confs[i] <- max(faces$detections$confidence, na.rm = TRUE)
+      } else {
+        max_confs[i] <- 0 
+      }
+    }
+  }
+  return(max_confs)
+}
+
+# Function to calculate Detection Rate and 95% Confidence Interval
+calc_stats <- function(conf_vector, threshold) {
+  n <- length(conf_vector)
+  successes <- sum(conf_vector >= threshold)
+  p <- successes / n
+  margin_error <- 1.96 * sqrt((p * (1 - p)) / n)
+  lower_bound <- max(0, (p - margin_error) * 100)
+  upper_bound <- min(100, (p + margin_error) * 100)
+  return(list(rate = p * 100, lower = lower_bound, upper = upper_bound))
+}
+
+# The thresholds we want to test
+thresholds <- c(50, 60, 70, 80, 90)
+```
+
+STEP 2: PERSON 1 - SCALE (Crowds & Distance)
+
+```{r}
+print("Scanning Scale Categories...")
+data_parade <- get_max_confidences("WIDER_train/images//0--Parade")             # Hard
+data_stock  <- get_max_confidences("WIDER_train/images//15--Stock_Market")      # Medium
+data_student <- get_max_confidences("WIDER_train/images//29--Students_Schoolkids") # Easy
+
+# Calculate Stats
+rate_parade <- sapply(thresholds, function(t) calc_stats(data_parade, t)$rate)
+low_parade <- sapply(thresholds, function(t) calc_stats(data_parade, t)$lower)
+up_parade <- sapply(thresholds, function(t) calc_stats(data_parade, t)$upper)
+
+rate_stock <- sapply(thresholds, function(t) calc_stats(data_stock, t)$rate)
+low_stock <- sapply(thresholds, function(t) calc_stats(data_stock, t)$lower)
+up_stock <- sapply(thresholds, function(t) calc_stats(data_stock, t)$upper)
+
+rate_student <- sapply(thresholds, function(t) calc_stats(data_student, t)$rate)
+low_student <- sapply(thresholds, function(t) calc_stats(data_student, t)$lower)
+up_student <- sapply(thresholds, function(t) calc_stats(data_student, t)$upper)
+
+# Plot
+plot(thresholds, rate_student, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+     main="Algorithm Brittleness: Scale (Crowds)", xlab="Confidence Threshold", ylab="Detection Rate (%)", las=1)
+lines(thresholds, rate_stock, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_parade, type="o", col="darkred", pch=16, lwd=2)
+
+arrows(thresholds, low_student, thresholds, up_student, length=0.05, angle=90, code=3, col="darkgreen")
+arrows(thresholds, low_stock, thresholds, up_stock, length=0.05, angle=90, code=3, col="orange")
+arrows(thresholds, low_parade, thresholds, up_parade, length=0.05, angle=90, code=3, col="darkred")
+
+legend("bottomleft", legend=c("Students (Close-up/Easy)", "Stock Market (Medium)", "Parade (Extreme Crowd)"), 
+       col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
+```
+
+STEP 3: PERSON 2 - OCCLUSION (Obstructions & Masks)
+
+```{r}
+print("Scanning Occlusion Categories...")
+data_riot <- get_max_confidences("WIDER_train/images//3--Riot")               # Hard
+data_racing <- get_max_confidences("WIDER_train/images//42--Car_Racing")      # Medium
+data_interview <- get_max_confidences("WIDER_train/images//13--Interview")    # Easy
+
+# Calculate Stats
+rate_riot <- sapply(thresholds, function(t) calc_stats(data_riot, t)$rate)
+low_riot <- sapply(thresholds, function(t) calc_stats(data_riot, t)$lower)
+up_riot <- sapply(thresholds, function(t) calc_stats(data_riot, t)$upper)
+
+rate_racing <- sapply(thresholds, function(t) calc_stats(data_racing, t)$rate)
+low_racing <- sapply(thresholds, function(t) calc_stats(data_racing, t)$lower)
+up_racing <- sapply(thresholds, function(t) calc_stats(data_racing, t)$upper)
+
+rate_interview <- sapply(thresholds, function(t) calc_stats(data_interview, t)$rate)
+low_interview <- sapply(thresholds, function(t) calc_stats(data_interview, t)$lower)
+up_interview <- sapply(thresholds, function(t) calc_stats(data_interview, t)$upper)
+
+# Plot
+plot(thresholds, rate_interview, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+     main="Algorithm Brittleness: Occlusion (Masks/Helmets)", xlab="Confidence Threshold", ylab="Detection Rate (%)", las=1)
+lines(thresholds, rate_racing, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_riot, type="o", col="darkred", pch=16, lwd=2)
+
+arrows(thresholds, low_interview, thresholds, up_interview, length=0.05, angle=90, code=3, col="darkgreen")
+arrows(thresholds, low_racing, thresholds, up_racing, length=0.05, angle=90, code=3, col="orange")
+arrows(thresholds, low_riot, thresholds, up_riot, length=0.05, angle=90, code=3, col="darkred")
+
+legend("bottomleft", legend=c("Interview (Clear/Easy)", "Racing (Partial/Medium)", "Riot (Heavy/Hard)"), 
+       col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
+```
+
+STEP 4: PERSON 3 - POSE (Movement & Angles)
+
+```{r}
+print("Scanning Pose Categories...")
+data_gym <- get_max_confidences("WIDER_train/images//40--Gymnastics")            # Hard
+data_dance <- get_max_confidences("WIDER_train/images//4--Dancing")              # Medium
+data_press <- get_max_confidences("WIDER_train/images//9--Press_Conference")     # Easy
+
+# Calculate Stats
+rate_gym <- sapply(thresholds, function(t) calc_stats(data_gym, t)$rate)
+low_gym <- sapply(thresholds, function(t) calc_stats(data_gym, t)$lower)
+up_gym <- sapply(thresholds, function(t) calc_stats(data_gym, t)$upper)
+
+rate_dance <- sapply(thresholds, function(t) calc_stats(data_dance, t)$rate)
+low_dance <- sapply(thresholds, function(t) calc_stats(data_dance, t)$lower)
+up_dance <- sapply(thresholds, function(t) calc_stats(data_dance, t)$upper)
+
+rate_press <- sapply(thresholds, function(t) calc_stats(data_press, t)$rate)
+low_press <- sapply(thresholds, function(t) calc_stats(data_press, t)$lower)
+up_press <- sapply(thresholds, function(t) calc_stats(data_press, t)$upper)
+
+# Plot
+plot(thresholds, rate_press, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2,
+     main="Algorithm Brittleness: Pose (Movement)", xlab="Confidence Threshold", ylab="Detection Rate (%)", las=1)
+lines(thresholds, rate_dance, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_gym, type="o", col="darkred", pch=16, lwd=2)
+
+arrows(thresholds, low_press, thresholds, up_press, length=0.05, angle=90, code=3, col="darkgreen")
+arrows(thresholds, low_dance, thresholds, up_dance, length=0.05, angle=90, code=3, col="orange")
+arrows(thresholds, low_gym, thresholds, up_gym, length=0.05, angle=90, code=3, col="darkred")
+
+legend("bottomleft", legend=c("Press Conf (Static/Easy)", "Dancing (Mixed/Medium)", "Gymnastics (Erratic/Hard)"), 
+       col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
+```
