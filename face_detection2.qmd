@@ -5,7 +5,7 @@ format: html
 editor: visual
 ---
 
-### Final Shreya R Code (Brittleness by Variable)
+### Shreya's Final R Code for DSPP Week 2 Presentation on Face Detection (Brittleness by Variable)
 
 **STEP 1: THE SHARED SETUP (Everyone runs this first)**
 
@@ -158,4 +158,205 @@ arrows(thresholds, low_gym, thresholds, up_gym, length=0.05, angle=90, code=3, c
 
 legend("bottomleft", legend=c("Press Conf (Static/Easy)", "Dancing (Mixed/Medium)", "Gymnastics (Erratic/Hard)"), 
        col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
+```
+
+```{r}
+
+# ==========================================
+# WIDER FACE COMPREHENSIVE SUBSET ANALYSIS
+# Subsets based on Yang et al. (2016) parameters
+# ==========================================
+
+library(magick)
+library(image.libfacedetection)
+
+# 1. Define the Groupings based on the 29 Categories
+# (b) SCALE SUBSETS
+scale_large  <- c("1--Handshaking", "16--Award_Ceremony", "20--Family_Group")
+scale_medium <- c("12--Group", "14--Traffic", "22--Picnic", "56--Voter", "10--People_Marching")
+scale_small  <- c("0--Parade", "3--Riot", "28--Sports_Fan", "61--Street_Battle", "2--Demonstration")
+
+# (c) OCCLUSION SUBSETS
+occ_none    <- c("1--Handshaking", "16--Award_Ceremony", "20--Family_Group")
+occ_partial <- c("4--Dancing", "5--Car_Accident", "34--Baseball", "38--Tennis", "42--Car_Racing")
+occ_heavy   <- c("3--Riot", "9--Press_Conference", "39--Ice_Fishing", "53--Raid", "54--Rescue", "24--Soldier_Firing")
+
+# (d) POSE SUBSETS
+pose_typical  <- c("16--Award_Ceremony", "1--Handshaking", "56--Voter", "50--Celebration_Or_Party")
+pose_atypical <- c("30--Gymnastics", "40--Yoga", "4--Dancing", "47--Matador_Bullfighter", "58--Hockey")
+
+# (a) OVERALL SUBSETS (Averaging the extremes)
+overall_easy   <- unique(c(scale_large, occ_none, pose_typical))
+overall_medium <- unique(c(scale_medium, occ_partial))
+overall_hard   <- unique(c(scale_small, occ_heavy, pose_atypical))
+
+# 2. Helper function to calculate aggregate rates for a subset of folders
+get_subset_rates <- function(folder_list, thresholds = c(50, 60, 70, 80, 90), sample_size = 50) {
+  all_confs <- c()
+  for (folder in folder_list) {
+    path <- paste0("WIDER_train/images//", folder)
+    confs <- get_max_confidences(path, sample_size) # Uses your existing function
+    all_confs <- c(all_confs, confs)
+  }
+  
+  rates <- sapply(thresholds, function(t) {
+    success <- sum(all_confs >= t, na.rm = TRUE)
+    return((success / length(all_confs)) * 100)
+  })
+  return(rates)
+}
+
+# 3. Calculate all rates
+thresholds <- c(50, 60, 70, 80, 90)
+
+print("Processing Scale Subsets...")
+rate_b1_large <- get_subset_rates(scale_large)
+rate_b2_med   <- get_subset_rates(scale_medium)
+rate_b3_small <- get_subset_rates(scale_small)
+
+print("Processing Occlusion Subsets...")
+rate_c1_none <- get_subset_rates(occ_none)
+rate_c2_part <- get_subset_rates(occ_partial)
+rate_c3_heav <- get_subset_rates(occ_heavy)
+
+print("Processing Pose Subsets...")
+rate_d1_typ  <- get_subset_rates(pose_typical)
+rate_d2_atyp <- get_subset_rates(pose_atypical)
+
+print("Processing Overall Subsets...")
+rate_a1_easy <- get_subset_rates(overall_easy)
+rate_a2_med  <- get_subset_rates(overall_medium)
+rate_a3_hard <- get_subset_rates(overall_hard)
+
+# 4. Generate the Final Plots
+par(mfrow=c(2,2)) # 2x2 grid for the 4 plots
+
+# Plot B: Scale
+plot(thresholds, rate_b1_large, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(b) Scale Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_b2_med, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_b3_small, type="o", col="darkred", pch=16, lwd=2)
+legend("bottomleft", legend=c("b.1 Large", "b.2 Medium", "b.3 Small"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.8)
+
+# Plot C: Occlusion
+plot(thresholds, rate_c1_none, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(c) Occlusion Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_c2_part, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_c3_heav, type="o", col="darkred", pch=16, lwd=2)
+legend("bottomleft", legend=c("c.1 None", "c.2 Partial", "c.3 Heavy"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.8)
+
+# Plot D: Pose
+plot(thresholds, rate_d1_typ, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(d) Pose Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_d2_atyp, type="o", col="darkred", pch=16, lwd=2)
+legend("bottomleft", legend=c("d.1 Typical", "d.2 Atypical"), col=c("darkgreen", "darkred"), lty=1, pch=16, cex=0.8)
+
+# Plot A: Overall
+plot(thresholds, rate_a1_easy, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=3, main="(a) Overall Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_a2_med, type="o", col="orange", pch=16, lwd=3)
+lines(thresholds, rate_a3_hard, type="o", col="darkred", pch=16, lwd=3)
+legend("bottomleft", legend=c("a.1 Easy", "a.2 Medium", "a.3 Hard"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.8)
+
+```
+
+```{r}
+# ==========================================
+# WIDER FACE COMPREHENSIVE SUBSET ANALYSIS
+# Subsets based on Yang et al. (2016) parameters
+# ==========================================
+
+library(magick)
+library(image.libfacedetection)
+
+# 1. Define the Groupings based on the 29 Categories
+# (b) SCALE SUBSETS
+scale_large  <- c("1--Handshaking", "16--Award_Ceremony", "20--Family_Group")
+scale_medium <- c("12--Group", "14--Traffic", "22--Picnic", "56--Voter", "10--People_Marching")
+scale_small  <- c("0--Parade", "3--Riot", "28--Sports_Fan", "61--Street_Battle", "2--Demonstration")
+
+# (c) OCCLUSION SUBSETS
+occ_none    <- c("1--Handshaking", "16--Award_Ceremony", "20--Family_Group")
+occ_partial <- c("4--Dancing", "5--Car_Accident", "34--Baseball", "38--Tennis", "42--Car_Racing")
+occ_heavy   <- c("3--Riot", "9--Press_Conference", "39--Ice_Fishing", "53--Raid", "54--Rescue", "24--Soldier_Firing")
+
+# (d) POSE SUBSETS
+pose_typical  <- c("16--Award_Ceremony", "1--Handshaking", "56--Voter", "50--Celebration_Or_Party")
+pose_atypical <- c("30--Gymnastics", "40--Yoga", "4--Dancing", "47--Matador_Bullfighter", "58--Hockey")
+
+# (a) OVERALL SUBSETS (Averaging the extremes)
+overall_easy   <- unique(c(scale_large, occ_none, pose_typical))
+overall_medium <- unique(c(scale_medium, occ_partial))
+overall_hard   <- unique(c(scale_small, occ_heavy, pose_atypical))
+
+# 2. Helper function to calculate aggregate rates for a subset of folders
+get_subset_rates <- function(folder_list, thresholds = c(50, 60, 70, 80, 90), sample_size = 50) {
+  all_confs <- c()
+  for (folder in folder_list) {
+    path <- paste0("WIDER_train/images//", folder)
+    confs <- get_max_confidences(path, sample_size) # Uses your existing function
+    all_confs <- c(all_confs, confs)
+  }
+  
+  rates <- sapply(thresholds, function(t) {
+    success <- sum(all_confs >= t, na.rm = TRUE)
+    return((success / length(all_confs)) * 100)
+  })
+  return(rates)
+}
+
+# 3. Calculate all rates
+thresholds <- c(50, 60, 70, 80, 90)
+
+print("Processing Scale Subsets...")
+rate_b1_large <- get_subset_rates(scale_large)
+rate_b2_med   <- get_subset_rates(scale_medium)
+rate_b3_small <- get_subset_rates(scale_small)
+
+print("Processing Occlusion Subsets...")
+rate_c1_none <- get_subset_rates(occ_none)
+rate_c2_part <- get_subset_rates(occ_partial)
+rate_c3_heav <- get_subset_rates(occ_heavy)
+
+print("Processing Pose Subsets...")
+rate_d1_typ  <- get_subset_rates(pose_typical)
+rate_d2_atyp <- get_subset_rates(pose_atypical)
+
+print("Processing Overall Subsets...")
+rate_a1_easy <- get_subset_rates(overall_easy)
+rate_a2_med  <- get_subset_rates(overall_medium)
+rate_a3_hard <- get_subset_rates(overall_hard)
+
+# 4. Generate the Final Plots
+# Reduced oma to 6 to restore plot visibility, mar adjusted for labels
+par(mfrow=c(2,2), mar=c(4, 4, 3, 2), oma=c(6, 1, 1, 1)) 
+
+# Plot B: Scale
+plot(thresholds, rate_b1_large, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(b) Scale Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_b2_med, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_b3_small, type="o", col="darkred", pch=16, lwd=2)
+legend("topright", legend=c("b.1 Large", "b.2 Medium", "b.3 Small"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.7, bg="white")
+
+# Plot C: Occlusion
+plot(thresholds, rate_c1_none, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(c) Occlusion Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_c2_part, type="o", col="orange", pch=16, lwd=2)
+lines(thresholds, rate_c3_heav, type="o", col="darkred", pch=16, lwd=2)
+legend("topright", legend=c("c.1 None", "c.2 Partial", "c.3 Heavy"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.7, bg="white")
+
+# Plot D: Pose
+plot(thresholds, rate_d1_typ, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=2, main="(d) Pose Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_d2_atyp, type="o", col="darkred", pch=16, lwd=2)
+legend("topright", legend=c("d.1 Typical", "d.2 Atypical"), col=c("darkgreen", "darkred"), lty=1, pch=16, cex=0.7, bg="white")
+
+# Plot A: Overall
+plot(thresholds, rate_a1_easy, type="o", col="darkgreen", pch=16, ylim=c(0, 100), lwd=3, main="(a) Overall Subsets", ylab="Detection Rate %", xlab="Threshold")
+lines(thresholds, rate_a2_med, type="o", col="orange", pch=16, lwd=3)
+lines(thresholds, rate_a3_hard, type="o", col="darkred", pch=16, lwd=3)
+legend("topright", legend=c("a.1 Easy", "a.2 Medium", "a.3 Hard"), col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, cex=0.7, bg="white")
+
+# Mapping Note - Using a slightly wider wrap and smaller text to save space
+mapping_text <- "Category Mapping: (b) Scale: b.1 Large (Handshaking, Award Ceremony, Family Group), b.2 Medium (Group, Traffic, Picnic, Voter, People Marching), b.3 Small (Parade, Riot, Sports Fan, Street Battle, Demonstration). (c) Occlusion: c.1 None (Handshaking, Award Ceremony, Family Group), c.2 Partial (Dancing, Car Accident, Baseball, Tennis, Car Racing), c.3 Heavy (Riot, Press Conference, Ice Fishing, Raid, Rescue, Soldier Firing). (d) Pose: d.1 Typical (Award Ceremony, Handshaking, Voter, Celebration), d.2 Atypical (Gymnastics, Yoga, Dancing, Matador, Hockey). (a) Overall: a.1 Easy (Avg. Large Scale/No Occlusion/Typical Pose), a.2 Medium (Avg. Medium Scale/Partial Occlusion), a.3 Hard (Avg. Small Scale/Heavy Occlusion/Atypical Pose)."
+
+wrapped_lines <- strwrap(mapping_text, width = 130)
+
+# Render centered text lines
+for (i in seq_along(wrapped_lines)) {
+  mtext(wrapped_lines[i], side = 1, line = i + 1, outer = TRUE, cex = 0.55, adj = 0.5)
+}
 ```
