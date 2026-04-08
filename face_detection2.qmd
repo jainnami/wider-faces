@@ -55,7 +55,7 @@ calc_stats <- function(conf_vector, threshold) {
 thresholds <- c(50, 60, 70, 80, 90)
 ```
 
-STEP 2: PERSON 1 - SCALE (Crowds & Distance)
+STEP 2: SCALE (Crowds & Distance)
 
 ```{r}
 print("Scanning Scale Categories...")
@@ -90,7 +90,7 @@ legend("bottomleft", legend=c("Students (Close-up/Easy)", "Stock Market (Medium)
        col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
 ```
 
-STEP 3: PERSON 2 - OCCLUSION (Obstructions & Masks)
+STEP 3: OCCLUSION (Obstructions & Masks)
 
 ```{r}
 print("Scanning Occlusion Categories...")
@@ -125,7 +125,7 @@ legend("bottomleft", legend=c("Interview (Clear/Easy)", "Racing (Partial/Medium)
        col=c("darkgreen", "orange", "darkred"), lty=1, pch=16, lwd=2)
 ```
 
-STEP 4: PERSON 3 - POSE (Movement & Angles)
+STEP 4: POSE (Movement & Angles)
 
 ```{r}
 print("Scanning Pose Categories...")
